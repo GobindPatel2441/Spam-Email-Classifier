@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SpamLens AI - Email Classifier</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;800&amp;display=swap" rel="stylesheet"/>
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#00478d",
+                        "primary-container": "#005eb8",
+                        "surface": "#f7f9ff",
+                        "surface-container-low": "#f1f4fa",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#181c20",
+                        "on-surface-variant": "#424752",
+                        "error": "#ba1a1a",
+                        "success": "#198754",
+                        "outline-variant": "#c2c6d4"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #181c20;
+        }
+        h1, h2, h3 {
+            font-family: 'Manrope', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-surface">
+<!-- TopNavBar -->
+<nav class="bg-white/80 shadow-sm fixed top-0 w-full z-50">
+    <div class="flex justify-between items-center w-full px-6 py-4 max-w-5xl mx-auto">
+        <div class="text-2xl font-extrabold text-slate-900 tracking-tighter">
+            SpamLens AI
+        </div>
+    </div>
+</nav>
+
+<main class="pt-24 pb-20 px-6 max-w-5xl mx-auto">
+    <div class="space-y-10">
+        <!-- Header Section -->
+        <header class="max-w-3xl text-center mx-auto">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-on-surface tracking-tighter mb-4">📧 Spam Email Classifier</h1>
+            <p class="text-lg text-on-surface-variant font-body">Detect whether an email is spam using our local Naive Bayes ML model.</p>
+        </header>
+
+        <!-- Input Section -->
+        <section class="bg-surface-container-low p-1 rounded-2xl max-w-3xl mx-auto">
+            <div class="bg-surface-container-lowest p-8 rounded-xl space-y-6 shadow-sm">
+                <label class="block text-sm font-label font-bold text-on-surface uppercase tracking-widest" for="email-input">Email Content to Analyze</label>
+                <textarea class="w-full h-48 p-6 bg-surface-container-low border border-outline-variant/50 rounded-lg text-lg focus:ring-2 focus:ring-primary/50 outline-none placeholder:text-outline-variant/80" id="email-input" placeholder="Paste the email text here..."></textarea>
+                <div class="flex justify-center pt-4" id="action-container">
+                    <button class="px-10 py-4 bg-gradient-to-br from-primary to-primary-container text-white rounded-full font-bold text-lg shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center space-x-3" onclick="handlePrediction()">
+                        <span class="material-symbols-outlined" id="btn-icon">verified_user</span>
+                        <span id="btn-text">Check Spam</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Canvas (Hidden by default) -->
+        <section class="space-y-6 max-w-3xl mx-auto hidden" id="results-area">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-headline font-bold">Analysis Results</h2>
+                <span class="bg-blue-100 text-blue-800 px-4 py-1 rounded-md text-xs font-bold uppercase tracking-widest">Naive Bayes ML</span>
+            </div>
+
+            <!-- Prediction Card (Full Width) -->
+            <div id="prediction-card" class="bg-surface-container-lowest p-8 rounded-xl shadow-md border-l-8 border-error flex items-center space-x-5">
+                <span class="text-5xl" id="result-icon">🚨</span>
+                <div>
+                    <h3 class="text-3xl font-headline font-extrabold" id="result-title" style="color: #ba1a1a;">Spam Detected</h3>
+                    <p class="text-sm text-slate-500 mt-1" id="result-subtitle">The safety confidence is very low — this message looks like a scam.</p>
+                </div>
+            </div>
+
+            <!-- Confidence Meter (Full Width) -->
+            <div class="bg-surface-container-lowest p-8 rounded-xl shadow-md space-y-5">
+                <!-- Header -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-label font-bold uppercase tracking-widest text-slate-500">Safety Confidence Score</p>
+                        <p class="text-sm text-slate-400 mt-0.5">Higher score = safer email · Lower score = likely spam</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-4xl font-headline font-extrabold" id="confidence-text">92<span class="text-2xl">%</span></div>
+                        <p class="text-xs font-bold uppercase tracking-widest mt-1" id="confidence-label" style="color:#ba1a1a;">DANGER ZONE</p>
+                    </div>
+                </div>
+
+                <!-- Gauge Bar -->
+                <div class="relative w-full">
+                    <!-- Track with gradient zones -->
+                    <div class="w-full h-5 rounded-full overflow-hidden flex">
+                        <div class="w-1/2 h-full" style="background: linear-gradient(to right, #ba1a1a, #f97316);"></div>
+                        <div class="w-1/4 h-full" style="background: linear-gradient(to right, #f97316, #eab308);"></div>
+                        <div class="w-1/4 h-full" style="background: linear-gradient(to right, #eab308, #198754);"></div>
+                    </div>
+                    <!-- Indicator Needle -->
+                    <div id="confidence-needle" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all duration-700"
+                         style="left: 92%; width: 18px; height: 26px; z-index: 10;">
+                        <div style="width:4px; height:100%; background:#181c20; border-radius:9999px; margin:auto; box-shadow: 0 0 0 3px white, 0 2px 6px rgba(0,0,0,0.3);"></div>
+                    </div>
+                </div>
+
+                <!-- Zone Labels -->
+                <div class="flex justify-between text-xs font-bold uppercase tracking-widest">
+                    <span style="color:#ba1a1a;">🔴 Scam / Spam</span>
+                    <span style="color:#eab308;">🟡 Suspicious</span>
+                    <span style="color:#198754;">🟢 Safe</span>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script>
+    async function handlePrediction() {
+        const textInput = document.getElementById("email-input").value;
+        if (!textInput.trim()) {
+            alert("Please enter some text to analyze.");
+            return;
+        }
+
+        const btnText = document.getElementById("btn-text");
+        const btnIcon = document.getElementById("btn-icon");
+        const resultsArea = document.getElementById("results-area");
+        
+        // Show loading state
+        btnText.innerText = "Analyzing...";
+        btnIcon.innerText = "hourglass_empty";
+        resultsArea.classList.add("hidden");
+
+        try {
+            const response = await fetch("http://localhost:5000/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: textInput })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                displayResults(data.prediction, data.confidence);
+            } else {
+                alert("Error from server: " + (data.error || "Unknown error"));
+            }
+        } catch (error) {
+            console.error("Error making prediction request:", error);
+            alert("Could not connect to the backend server. Make sure 'app.py' is running on port 5000.");
+        } finally {
+            btnText.innerText = "Check Spam";
+            btnIcon.innerText = "verified_user";
+        }
+    }
+
+    function displayResults(prediction, confidence) {
+        const resultsArea    = document.getElementById("results-area");
+        const predictionCard = document.getElementById("prediction-card");
+        const resultTitle    = document.getElementById("result-title");
+        const resultSubtitle = document.getElementById("result-subtitle");
+        const resultIcon     = document.getElementById("result-icon");
+        const confText       = document.getElementById("confidence-text");
+        const confLabel      = document.getElementById("confidence-label");
+        const needle         = document.getElementById("confidence-needle");
+
+        resultsArea.classList.remove("hidden");
+
+        // Update confidence display
+        const confPercent = Math.round(confidence * 100);
+        confText.innerHTML = `${confPercent}<span class="text-2xl">%</span>`;
+
+        // Position needle: 0% = left, 100% = right
+        needle.style.left = `${confPercent}%`;
+
+        // Determine verdict based on confidence (Ham probability)
+        // High confidence = safe, Low confidence = spam/scam
+        if (confidence > 0.90) {
+            // SAFE
+            predictionCard.className = "bg-surface-container-lowest p-8 rounded-xl shadow-md border-l-8 border-green-600 flex items-center space-x-5";
+            resultTitle.innerText    = "Not Spam — Safe";
+            resultTitle.style.color  = "#16a34a";
+            resultSubtitle.innerText = "High safety confidence — this message appears to be legitimate.";
+            resultIcon.innerText     = "✅";
+            confText.className       = "text-4xl font-headline font-extrabold";
+            confText.style.color     = "#198754";
+            confLabel.innerText      = "LOOKS SAFE";
+            confLabel.style.color    = "#198754";
+
+        } else if (confidence > 0.50) {
+            // SUSPICIOUS
+            predictionCard.className = "bg-surface-container-lowest p-8 rounded-xl shadow-md border-l-8 border-yellow-500 flex items-center space-x-5";
+            resultTitle.innerText    = "Possible Scam Detected";
+            resultTitle.style.color  = "#eab308";
+            resultSubtitle.innerText = "Moderate confidence — treat this message with caution.";
+            resultIcon.innerText     = "⚠️";
+            confText.className       = "text-4xl font-headline font-extrabold";
+            confText.style.color     = "#eab308";
+            confLabel.innerText      = "LIKELY SUSPICIOUS";
+            confLabel.style.color    = "#eab308";
+
+        } else {
+            // SPAM / SCAM
+            predictionCard.className = "bg-surface-container-lowest p-8 rounded-xl shadow-md border-l-8 border-error flex items-center space-x-5";
+            resultTitle.innerText    = "Spam Detected";
+            resultTitle.style.color  = "#ba1a1a";
+            resultSubtitle.innerText = "Very low safety confidence — this message is likely a scam or spam.";
+            resultIcon.innerText     = "🚨";
+            confText.className       = "text-4xl font-headline font-extrabold";
+            confText.style.color     = "#ba1a1a";
+            confLabel.innerText      = "DANGER ZONE";
+            confLabel.style.color    = "#ba1a1a";
+        }
+    }
+</script>
+</body></html>
